@@ -14,9 +14,24 @@ openerp.suvit_sentry = function(instance, local) {
   instance.web.Client.include({
     init: function(parent, origin) {
       this._super(parent, origin);
+      var _instance = instance;
       new instance.web.Model("ir.config_parameter").call("get_param", ['SENTRY_CLIENT_JS_DSN']).then(function(value) {
         if (value) {
-          Raven.config(value).install();
+          Raven.config(value, {
+            dataCallback: function(data) {
+              if (typeof _instance.session.username !== 'undefined') {
+                // Add user information only when it's available right before reporting the error.
+                data = _.extend(data, {
+                  user: {
+                    name: _instance.session.username,
+                    context: _instance.session.user_context,
+                    id: _instance.session.uid
+                  }
+                });
+              }
+              return data;
+            }
+          }).install();
         }
       });
     }
@@ -25,11 +40,6 @@ openerp.suvit_sentry = function(instance, local) {
     show_error: function(error) {
       if (error.client) {
         try {
-          Raven.setUserContext({
-            name: instance.session.username,
-            context: instance.session.user_context,
-            id: instance.session.uid
-          });
           Raven.captureException(error.message, {extra: error});
           error.last_code = Raven.lastEventId();
         } catch (e) {}

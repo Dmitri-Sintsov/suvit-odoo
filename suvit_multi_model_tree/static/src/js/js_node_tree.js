@@ -1,4 +1,5 @@
 openerp.suvit_multi_model_tree = function (instance, local) {
+  openerp.suvit_multi_model_tree_old(instance, local)
 
   var QWeb = instance.web.qweb;
   var _t = instance.web._t;
@@ -114,7 +115,6 @@ openerp.suvit_multi_model_tree = function (instance, local) {
       this.fields_view.fields[self.field_parent] = {};
       if (self.tree_type_field) {
           this.fields_view.fields[self.tree_type_field] = {};
-          this.fields_view.fields['tree_obj_real_id'] = {};
       }
 
       // console.log('JSTree.load', Object.keys(this.fields_view.fields));
@@ -679,6 +679,5 @@ openerp.suvit_multi_model_tree = function (instance, local) {
     }
   });
 
-  instance.web.form.widgets.add('js_node_tree', 'instance.format_web_tree.JsNodeTreeViewField');
-
+  instance.web.form.widgets.add('js_node_tree', 'instance.suvit_multi_model_tree.JsNodeTreeViewField');
 };

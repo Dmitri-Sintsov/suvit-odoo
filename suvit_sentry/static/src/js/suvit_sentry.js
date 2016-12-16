@@ -14,31 +14,24 @@ openerp.suvit_sentry = function(instance, local) {
   instance.web.Client.include({
     init: function(parent, origin) {
       this._super(parent, origin);
-      var _instance = instance;
+      instance.session.session_reload().then(function() {
+        console.log(this.session);
+        Raven.setUserContext({
+          name: this.session.username,
+          context: this.session.user_context,
+          id: this.session.uid
+        });
+      }.bind(this));
       new instance.web.Model("ir.config_parameter").call("get_param", ['SENTRY_CLIENT_JS_DSN']).then(function(value) {
         if (value) {
-          Raven.config(value, {
-            dataCallback: function(data) {
-              if (typeof _instance.session.username !== 'undefined') {
-                // Add user information only when it's available right before reporting the error.
-                data = _.extend(data, {
-                  user: {
-                    name: _instance.session.username,
-                    context: _instance.session.user_context,
-                    id: _instance.session.uid
-                  }
-                });
-              }
-              return data;
-            }
-          }).install();
+          Raven.config(value).install();
         }
       });
     }
   });
   instance.web.CrashManager.include({
     show_error: function(error) {
-      if (error.client) {
+      if (typeof error.client !== 'undefined') {
         try {
           Raven.captureException(error.message, {extra: error});
           error.last_code = Raven.lastEventId();
@@ -55,14 +48,16 @@ openerp.suvit_sentry = function(instance, local) {
     show_common: function() {
       var self = this;
       this._super();
-      window.onerror = function (message, file, line) {
+      // Do not set window.onerror = function() {} because there could be multiple event listeners.
+      window.addEventListener('error', function (evt) {
           self.crashmanager.show_error({
               type: _t("Client Error"),
-              message: message,
-              data: {debug: file + ':' + line},
+              message: evt.message,
+              data: {debug: evt.lineno + ':' + evt.filename},
+              // file + ':' + line
               client: true
           });
-      };
+      });
     }
   });
 };
